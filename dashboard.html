@@ -57,11 +57,11 @@
     </div>
     <div class="summary-card">
       <strong>✅ Total Verified by MFQ</strong>
-      <p>400</p>
+      <p>(under development)</p>
     </div>
     <div class="summary-card">
       <strong>🕒 Under MFQ Review</strong>
-      <p>500</p>
+      <p>(under development)</p>
     </div>
   </div>
   <!-- Charts Section -->
@@ -229,20 +229,12 @@
   </div>
 
 
-  <!-- Global Loading Overlay -->
-<div id="loading-overlay" style="
-    display: none;
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5);
-    color: white;
-    font-size: 24px;
-    font-weight: bold;
-    text-align: center;
-    padding-top: 20%;
-    z-index: 9999;
-">
-    Fetching data...
+ 
+<div id="loading-overlay">
+    <div class="loading-content">
+        <span class="hourglass">⏳</span>
+        <div class="loading-text">Fetching data...</div>
+    </div>
 </div>
 
 
@@ -251,19 +243,6 @@
 </body>
 <script>
   
-
-
-
-
-function showLoading() {
-    document.getElementById('loading-overlay').style.display = 'block';
-}
-
-function hideLoading() {
-    document.getElementById('loading-overlay').style.display = 'none';
-}
-
-
 
 
 
@@ -1050,7 +1029,6 @@ document.addEventListener("DOMContentLoaded", () => {
   createST40Chart(["301", "401"], [0.50, 0.50]);
 
     });
-  
 
 
 
@@ -1084,7 +1062,7 @@ async function updateGeneralInfo(date, line, shift) {
 
 
 async function updateST45And85Card(date, line, shift) {
-  const baseUrl = "https://script.google.com/macros/s/AKfycbzPzXIgY5fwYnRXU3mP3s6CSDmF7NutjPpOsRKxwaCAq7IPVMS_Ux1tdLZQVJ4YDbEh/exec"; // Replace with /exec URL
+  const baseUrl = "https://script.google.com/macros/s/AKfycbzPzXIgY5fwYnRXU3mP3s6CSDmF7NutjPpOsRKxwaCAq7IPVMS_Ux1tdLZQVJ4YDbEh/exec"; 
   const url = `${baseUrl}?chart=st45_85&date=${encodeURIComponent(date)}&line=${encodeURIComponent(line)}&shift=${encodeURIComponent(shift)}`;
 
   try {
@@ -1093,26 +1071,46 @@ async function updateST45And85Card(date, line, shift) {
 
     if (!res.ok || data.error) {
       console.error("ST45/ST85 Fetch Error:", data.error || "Unknown error");
-      document.getElementById("status-231").innerText = "No data";
-      document.getElementById("status-232").innerText = "No data";
-      document.getElementById("status-ecu-screws").innerText = "No data";
-      document.getElementById("status-ecu-housing").innerText = "No data";
+      setStatus("status-231", "No data");
+      setStatus("status-232", "No data");
+      setStatus("status-ecu-screws", "No data");
+      setStatus("status-ecu-housing", "No data");
       return;
     }
 
-    document.getElementById("status-231").innerText = data["231"];
-    document.getElementById("status-232").innerText = data["232"];
-    document.getElementById("status-ecu-screws").innerText = data["ecuScrews"];
-    document.getElementById("status-ecu-housing").innerText = data["ecuHousing"];
+    // Set values and apply colors
+    setStatus("status-231", data["231"]);
+    setStatus("status-232", data["232"]);
+    setStatus("status-ecu-screws", data["ecuScrews"]);
+    setStatus("status-ecu-housing", data["ecuHousing"]);
 
   } catch (err) {
     console.error("ST45/ST85 Fetch Error:", err);
-    document.getElementById("status-231").innerText = "Error";
-    document.getElementById("status-232").innerText = "Error";
-    document.getElementById("status-ecu-screws").innerText = "Error";
-    document.getElementById("status-ecu-housing").innerText = "Error";
+    setStatus("status-231", "Error");
+    setStatus("status-232", "Error");
+    setStatus("status-ecu-screws", "Error");
+    setStatus("status-ecu-housing", "Error");
   }
 }
+
+// Helper function to set status text + color
+function setStatus(id, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.innerText = text;
+
+  // Remove any previous color classes
+  el.classList.remove("status-ok-custom", "status-nok-custom");
+
+  // Apply class based on text value
+  if (text && text.toString().trim().toLowerCase() === "ok") {
+    el.classList.add("status-ok-custom");
+  } else if (text && text.toString().trim().toLowerCase() === "nok") {
+    el.classList.add("status-nok-custom");
+  }
+}
+
 
 
 
@@ -1124,7 +1122,7 @@ async function updateTotalInspectionsCard() {
   if (!card) return;
 
   // Show waiting message
-  card.textContent = 'Waiting for data...';
+  card.textContent = '🤔...';
 
   try {
     const res = await fetch(`${BASE_URL}?type=totalinspections`);
@@ -1157,46 +1155,57 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-document.getElementById("apply-filters").addEventListener("click", async () => {
-    const date = document.getElementById("filter-date").value;
-    const shift = document.getElementById("filter-shift").value;
-    const line = document.getElementById("filter-line").value;
-
-    if (!date || !shift || !line) {
-        alert("Please select all filters");
-        return;
+ // Show loader
+    function showLoading() {
+        document.getElementById('loading-overlay').classList.add('active');
     }
 
-    // Show fetching overlay
-    showLoading();
-
-    // Show instant placeholder bars (light gray, no labels)
-    renderST15Chart(["501", "502"]);
-    renderST20Chart(["311","312","411","412","531","532","541","542"]);
-    createST25CChart(0.0); // Placeholder
-    createST25MVChart(["201", "202", "211", "212"]);
-    createST30Chart(["222", "223", "224"]);
-    createST40Chart(["301", "401"]);
-
-    try {
-        // Fetch all charts/cards in parallel
-        await Promise.all([
-            fetchST15Chart(date, shift, line),
-            fetchST20Chart(date, shift, line),
-            fetchST25CChart(date, shift, line),
-            updateST25MVChart(date, line, shift),
-            updateST30Chart(date, line, shift),
-            updateST40Chart(date, line, shift),
-            updateGeneralInfo(date, line, shift),
-            updateST45And85Card(date, line, shift),
-            updateTotalInspectionsCard()
-        ]);
-    } catch (err) {
-        console.error("Error loading charts:", err);
-    } finally {
-        // Hide overlay when all fetches complete
-        hideLoading();
+    // Hide loader
+    function hideLoading() {
+        document.getElementById('loading-overlay').classList.remove('active');
     }
-});
+
+    // Apply filters click handler
+    document.getElementById("apply-filters").addEventListener("click", async () => {
+        const date = document.getElementById("filter-date").value;
+        const shift = document.getElementById("filter-shift").value;
+        const line = document.getElementById("filter-line").value;
+
+        if (!date || !shift || !line) {
+            alert("Please select all filters");
+            return;
+        }
+
+        // Show loading overlay
+        showLoading();
+
+        // Placeholder charts before fetching
+        renderST15Chart(["501", "502"]);
+        renderST20Chart(["311","312","411","412","531","532","541","542"]);
+        createST25CChart(0.0);
+        createST25MVChart(["201", "202", "211", "212"]);
+        createST30Chart(["222", "223", "224"]);
+        createST40Chart(["301", "401"]);
+
+        try {
+            // Fetch charts/cards in parallel
+            await Promise.allSettled([
+                fetchST15Chart(date, shift, line),
+                fetchST20Chart(date, shift, line),
+                fetchST25CChart(date, shift, line),
+                updateST25MVChart(date, line, shift),
+                updateST30Chart(date, line, shift),
+                updateST40Chart(date, line, shift),
+                updateGeneralInfo(date, line, shift),
+                updateST45And85Card(date, line, shift),
+                updateTotalInspectionsCard()
+            ]);
+        } catch (err) {
+            console.error("Error loading charts:", err);
+        } finally {
+            // Smooth delay before hiding
+            setTimeout(() => hideLoading(), 400);
+        }
+    });
 </script>
 </html>
