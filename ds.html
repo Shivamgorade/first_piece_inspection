@@ -1,0 +1,570 @@
+
+// For saving form data (your existing doPost)
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+
+  sheet.appendRow([
+      data.date,
+    data.line_no,
+    data.shift,
+    data.part_no,
+    data.part_type,
+    data.supervisor,
+    data.st15_dmc_no,
+    data.pos_501,                       // 501 column
+    data.pos_502,                       // 502 column
+    data.visual_inspection_st_15,     // Visual Inspection of Staking HU (Pos. 501 & 502)
+    data.pos_311,
+    data.pos_312,
+    data.pos_411,
+    data.pos_412,
+    data.pos_531,
+    data.pos_532,
+    data.pos_541,
+    data.pos_542,
+    data.visual_inspection_st_20,
+    data.pos_221,
+    data.visual_inspection_st_25_c,
+    data.pos_201,
+    data.pos_202,
+    data.pos_211,
+    data.pos_212,
+    data.visual_inspection_st_25_mv,
+    data.st30_dmc_no,
+    data.pos_222,
+    data.pos_223,
+    data.pos_224,
+    data.visual_inspection_st_30,
+    data.pos_301,
+    data.pos_401,
+    data.visual_inspection_st_40,
+    data.pos_231,
+    data.pos_232,
+    data.visual_inspection_st_45,
+    data.visual_inspection_st_85,
+    data.checked_by,
+
+  ]);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ result: "success" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+
+
+
+function doGet(e) {
+  try {
+    // 1) Endpoints that use ?type=
+    if ((e.parameter.type || "").toLowerCase() === "generalinfo") {
+      return handleGeneralInfo(e);
+    }
+
+    // 2) Endpoints that use ?chart=
+    var chartType = (e.parameter.chart || "").toLowerCase();
+    if (!chartType) {
+      return sendJSON({ error: "Missing chart parameter" });
+    }
+
+    if (chartType === "st15") {
+      return handleST15(e);
+    } else if (chartType === "st20") {
+      return handleST20(e);
+    } else if (chartType === "st25c") {
+      return handleST25C(e);
+    } else if (chartType === "st25mv") {
+      return handleST25MV(e);
+    } else if (chartType === "st30") {
+      return handleST30(e);
+    } else if (chartType === "st40") {
+      return handleST40(e);
+      } else if (chartType === "st45_85") {   // ✅ Add this line
+      return handleST45And85(e);
+    } else {
+      return sendJSON({ error: "Invalid chart parameter" });
+    }
+  } catch (err) {
+    return sendJSON({ error: err.message });
+  }
+}
+
+
+
+
+/** ---------- STEP 1: GENERAL INFO (robust header detection) ---------- */
+function handleGeneralInfo(e) {
+  var ss   = SpreadsheetApp.openById("15PhtPuMc5Io1VgaYHufES4qj6eYBpDLIMNIIsB9oGNI"); // <-- change me
+  var sh   = ss.getSheetByName("sheet1");          // <-- change me
+  var vals = sh.getDataRange().getValues();
+
+  var requiredHeaders = [
+    "DATE","LINE NO","SHIFT","PART NO","PART TYPE",
+    "SUPERVISOR","ST-15 DMC NO","ST-30 DMC NO","CHECKED BY"
+  ];
+
+  // 1) Find header row anywhere in the first 10 rows
+  var found = findHeaderRowAndMap(vals, requiredHeaders, 10);
+  if (!found) {
+    return sendJSON({ error: "Required columns missing for General Info." });
+  }
+  var headerRow = found.headerRow;     // 0-based index
+  var idx = found.indexMap;            // e.g. idx["DATE"] = column index
+
+  // 2) Params (normalize like your Django code)
+  var dateParam  = (e.parameter.date  || "").trim();
+  var lineParam  = (e.parameter.line  || "").trim().toUpperCase();
+  var shiftParam = (e.parameter.shift || "").trim().toLowerCase();
+
+  // 3) Scan rows below header for a match
+  for (var r = headerRow + 1; r < vals.length; r++) {
+    var row = vals[r];
+
+    var rowDate  = formatDate(row[idx["DATE"]]); // yyyy-MM-dd
+    var rowLine  = String(row[idx["LINE NO"]] || "").trim().toUpperCase();
+    var rowShift = String(row[idx["SHIFT"]]   || "").trim().toLowerCase();
+
+    if (rowDate === dateParam && rowLine === lineParam && rowShift === shiftParam) {
+      var data = {
+        "DATE": rowDate,
+        "LINE NO": String(row[idx["LINE NO"]] || ""),
+        "SHIFT": String(row[idx["SHIFT"]] || ""),
+        "PART NO": String(row[idx["PART NO"]] || ""),
+        "PART TYPE": String(row[idx["PART TYPE"]] || ""),
+        "SUPERVISOR": String(row[idx["SUPERVISOR"]] || ""),
+        "ST-15 DMC NO": String(row[idx["ST-15 DMC NO"]] || ""),
+        "ST-30 DMC NO": String(row[idx["ST-30 DMC NO"]] || ""),
+        "CHECKED BY": String(row[idx["CHECKED BY"]] || "")
+      };
+      return sendJSON(data);
+    }
+  }
+
+  return sendJSON({ message: "No data found" });
+}
+
+/** ---------- Helpers ---------- */
+function findHeaderRowAndMap(values, requiredHeaders, maxScanRows) {
+  // Try rows 0 .. maxScanRows-1 to find a header row that contains all required
+  for (var r = 0; r < Math.min(values.length, maxScanRows); r++) {
+    var row = values[r].map(function(h) { return String(h || "").trim(); });
+
+    // Build a case-insensitive lookup
+    var normalized = row.map(function(h) { return h.toUpperCase(); });
+
+    var indexMap = {};
+    var ok = true;
+    for (var i = 0; i < requiredHeaders.length; i++) {
+      var need = requiredHeaders[i].toUpperCase();
+      var col  = normalized.indexOf(need);
+      if (col === -1) { ok = false; break; }
+      indexMap[requiredHeaders[i]] = col;
+    }
+    if (ok) {
+      return { headerRow: r, indexMap: indexMap };
+    }
+  }
+  return null;
+}
+
+function formatDate(d) {
+  if (Object.prototype.toString.call(d) === "[object Date]" && !isNaN(d)) {
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  }
+  // already text: try to normalize to yyyy-MM-dd when possible
+  var s = String(d || "").trim();
+  // If it's like 2025-08-15 already, keep it
+  return s;
+}
+
+function sendJSON(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+  
+
+
+
+
+
+
+
+
+
+// ✅ Handle ST-45 & ST-85 card
+function handleST45And85(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var headerRowIndex = 1;
+  var headers = sheet.getRange(headerRowIndex + 1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(h => String(h).trim().toUpperCase());
+
+  var idxDate = headers.indexOf("DATE") + 1;
+  var idxLine = headers.indexOf("LINE NO") + 1;
+  var idxShift = headers.indexOf("SHIFT") + 1;
+  var idx231 = headers.indexOf("231") + 1;
+  var idx232 = headers.indexOf("232") + 1;
+  var idxEcuScrews = headers.indexOf("NO DAMAGE TO HEAD OF ECU SCREWS AFTER TORQUING") + 1;
+  var idxEcuHousing = headers.indexOf("NO DAMAGE TO ECU HOUSING (PINS OF CUSTOMER CONNECTOR)") + 1;
+
+  if ([idxDate, idxLine, idxShift, idx231, idx232, idxEcuScrews, idxEcuHousing].some(i => i <= 0)) {
+    return sendJSON({ error: "Required columns missing for ST-45/ST-85." });
+  }
+
+  var dateParam = e.parameter.date;
+  var lineParam = e.parameter.line;
+  var shiftParam = e.parameter.shift;
+
+  var lastRow = sheet.getLastRow();
+  var result = {};
+
+  for (var rowIndex = headerRowIndex + 2; rowIndex <= lastRow; rowIndex++) {
+    var rowDate = formatDate(sheet.getRange(rowIndex, idxDate).getValue());
+    var rowLine = String(sheet.getRange(rowIndex, idxLine).getValue()).trim();
+    var rowShift = String(sheet.getRange(rowIndex, idxShift).getValue()).trim();
+
+    if (rowDate === dateParam && rowLine === lineParam && rowShift === shiftParam) {
+      result["231"] = sheet.getRange(rowIndex, idx231).getValue() || "N/A";
+      result["232"] = sheet.getRange(rowIndex, idx232).getValue() || "N/A";
+      result["ecuScrews"] = sheet.getRange(rowIndex, idxEcuScrews).getValue() || "N/A";
+      result["ecuHousing"] = sheet.getRange(rowIndex, idxEcuHousing).getValue() || "N/A";
+      break;
+    }
+  }
+
+  if (Object.keys(result).length === 0) {
+    return sendJSON({ error: "No data found for selected filters." });
+  }
+
+  return sendJSON(result);
+}
+
+// Send JSON with CORS
+function sendJSON(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader("Access-Control-Allow-Origin", "*"); // ✅ allow cross-origin
+}
+
+// Format date as yyyy-MM-dd
+function formatDate(dateObj) {
+  if (Object.prototype.toString.call(dateObj) === "[object Date]") {
+    return Utilities.formatDate(dateObj, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  }
+  return String(dateObj).trim();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function handleST15(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var headerRowIndex = 1;
+  var headers = sheet.getRange(headerRowIndex + 1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(h => String(h).trim().toUpperCase());
+
+  var idxDate  = headers.indexOf("DATE") + 1;
+  var idxLine  = headers.indexOf("LINE NO") + 1;
+  var idxShift = headers.indexOf("SHIFT") + 1;
+  var idx501   = headers.indexOf("501") + 1;
+  var idx502   = headers.indexOf("502") + 1;
+
+  if ([idxDate, idxLine, idxShift, idx501, idx502].some(i => i <= 0)) {
+    return sendJSON({ error: "Required columns missing for ST-15." });
+  }
+
+  var dateParam  = e.parameter.date;
+  var shiftParam = e.parameter.shift;
+  var lineParam  = e.parameter.line;
+
+  var labels = [];
+  var values = [];
+
+  var lastRow = sheet.getLastRow();
+  for (var rowIndex = headerRowIndex + 2; rowIndex <= lastRow; rowIndex++) {
+    var rowDate  = formatDate(sheet.getRange(rowIndex, idxDate).getValue());
+    var rowLine  = String(sheet.getRange(rowIndex, idxLine).getValue()).trim();
+    var rowShift = String(sheet.getRange(rowIndex, idxShift).getValue()).trim();
+
+    if (rowDate === dateParam && rowLine === lineParam && rowShift === shiftParam) {
+      var val501 = Number(sheet.getRange(rowIndex, idx501).getValue()) || null;
+      var val502 = Number(sheet.getRange(rowIndex, idx502).getValue()) || null;
+
+      if (val501 !== null) { labels.push("501"); values.push(val501); }
+      if (val502 !== null) { labels.push("502"); values.push(val502); }
+      break;
+    }
+  }
+
+  if (labels.length === 0) return sendJSON({ error: "No matching ST-15 data found." });
+
+  return sendJSON({ labels: labels, data: values });
+}
+
+function handleST20(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var headerRowIndex = 1;
+  var headers = sheet.getRange(headerRowIndex + 1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(h => String(h).trim().toUpperCase());
+
+  var idxDate  = headers.indexOf("DATE") + 1;
+  var idxLine  = headers.indexOf("LINE NO") + 1;
+  var idxShift = headers.indexOf("SHIFT") + 1;
+  var colNames = ["311","312","411","412","531","532","541","542"];
+  var colIndices = colNames.map(name => headers.indexOf(name) + 1);
+
+  if ([idxDate, idxLine, idxShift, ...colIndices].some(i => i <= 0)) {
+    return sendJSON({ error: "Required columns missing for ST-20." });
+  }
+
+  var dateParam  = e.parameter.date;
+  var shiftParam = e.parameter.shift;
+  var lineParam  = e.parameter.line;
+
+  var labels = [];
+  var values = [];
+
+  var lastRow = sheet.getLastRow();
+  for (var rowIndex = headerRowIndex + 2; rowIndex <= lastRow; rowIndex++) {
+    var rowDate  = formatDate(sheet.getRange(rowIndex, idxDate).getValue());
+    var rowLine  = String(sheet.getRange(rowIndex, idxLine).getValue()).trim();
+    var rowShift = String(sheet.getRange(rowIndex, idxShift).getValue()).trim();
+
+    if (rowDate === dateParam && rowLine === lineParam && rowShift === shiftParam) {
+      colIndices.forEach((colIdx, idx) => {
+        var val = Number(sheet.getRange(rowIndex, colIdx).getValue()) || null;
+        if (val !== null) { labels.push(colNames[idx]); values.push(val); }
+      });
+      break;
+    }
+  }
+
+  if (labels.length === 0) return sendJSON({ error: "No matching ST-20 data found." });
+
+  return sendJSON({ labels: labels, data: values });
+}
+
+function sendJSON(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function formatDate(dateObj) {
+  if (Object.prototype.toString.call(dateObj) === "[object Date]") {
+    return Utilities.formatDate(dateObj, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  }
+  return String(dateObj).trim();
+}
+
+
+function handleST25C(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var headerRowIndex = 1;
+  var headers = sheet.getRange(headerRowIndex + 1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(h => String(h).trim().toUpperCase());
+
+  // Adjust "221" to match your actual column header name
+  var idxDate  = headers.indexOf("DATE") + 1;
+  var idxLine  = headers.indexOf("LINE NO") + 1;
+  var idxShift = headers.indexOf("SHIFT") + 1;
+  var idx221   = headers.indexOf("221") + 1;
+
+  if ([idxDate, idxLine, idxShift, idx221].some(i => i <= 0)) {
+    return sendJSON({ error: "Required columns missing for ST-25-C." });
+  }
+
+  var dateParam  = e.parameter.date;
+  var shiftParam = e.parameter.shift;
+  var lineParam  = e.parameter.line;
+
+  var lastRow = sheet.getLastRow();
+  var value = null;
+
+  for (var rowIndex = headerRowIndex + 2; rowIndex <= lastRow; rowIndex++) {
+    var rowDate  = formatDate(sheet.getRange(rowIndex, idxDate).getValue());
+    var rowLine  = String(sheet.getRange(rowIndex, idxLine).getValue()).trim();
+    var rowShift = String(sheet.getRange(rowIndex, idxShift).getValue()).trim();
+
+    if (rowDate === dateParam && rowLine === lineParam && rowShift === shiftParam) {
+      value = Number(sheet.getRange(rowIndex, idx221).getValue()) || null;
+      break;
+    }
+  }
+
+  if (value === null) {
+    return sendJSON({ error: "No matching ST-25-C data found." });
+  }
+
+  return sendJSON({ labels: ["221"], values: [value] });
+}
+
+function handleST25MV(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var headerRowIndex = 1;
+  var headers = sheet.getRange(headerRowIndex + 1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(h => String(h).trim().toUpperCase());
+
+  // Adjust these station numbers to match your sheet headers
+  var idxDate  = headers.indexOf("DATE") + 1;
+  var idxLine  = headers.indexOf("LINE NO") + 1;
+  var idxShift = headers.indexOf("SHIFT") + 1;
+  var colNames = ["201","202","211","212"];
+  var colIndices = colNames.map(name => headers.indexOf(name) + 1);
+
+  if ([idxDate, idxLine, idxShift, ...colIndices].some(i => i <= 0)) {
+    return sendJSON({ error: "Required columns missing for ST-25-MV." });
+  }
+
+  var dateParam  = e.parameter.date;
+  var shiftParam = e.parameter.shift;
+  var lineParam  = e.parameter.line;
+
+  var labels = [];
+  var values = [];
+
+  var lastRow = sheet.getLastRow();
+  for (var rowIndex = headerRowIndex + 2; rowIndex <= lastRow; rowIndex++) {
+    var rowDate  = formatDate(sheet.getRange(rowIndex, idxDate).getValue());
+    var rowLine  = String(sheet.getRange(rowIndex, idxLine).getValue()).trim();
+    var rowShift = String(sheet.getRange(rowIndex, idxShift).getValue()).trim();
+
+    if (rowDate === dateParam && rowLine === lineParam && rowShift === shiftParam) {
+      colIndices.forEach((colIdx, idx) => {
+        var val = Number(sheet.getRange(rowIndex, colIdx).getValue()) || null;
+        if (val !== null) { labels.push(colNames[idx]); values.push(val); }
+      });
+      break;
+    }
+  }
+
+  if (labels.length === 0) return sendJSON({ error: "No matching ST-25-MV data found." });
+
+  return sendJSON({ labels: labels, values: values });
+}
+
+
+function handleST30(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var headerRowIndex = 1;
+
+  // Read headers and normalize
+  var headers = sheet.getRange(headerRowIndex + 1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(h => String(h).trim().toUpperCase());
+
+  // Expected columns
+  var idxDate  = headers.indexOf("DATE") + 1;
+  var idxLine  = headers.indexOf("LINE NO") + 1;
+  var idxShift = headers.indexOf("SHIFT") + 1;
+  var colNames = ["222", "223", "224"]; // ST-30 columns
+  var colIndices = colNames.map(name => headers.indexOf(name) + 1);
+
+  // Validate required columns
+  if ([idxDate, idxLine, idxShift, ...colIndices].some(i => i <= 0)) {
+    return sendJSON({ error: "Required columns missing for ST-30." });
+  }
+
+  // Parameters from query string
+  var dateParam  = e.parameter.date;
+  var shiftParam = e.parameter.shift;
+  var lineParam  = e.parameter.line;
+
+  var labels = [];
+  var values = [];
+
+  var lastRow = sheet.getLastRow();
+  for (var rowIndex = headerRowIndex + 2; rowIndex <= lastRow; rowIndex++) {
+    var rowDate  = formatDate(sheet.getRange(rowIndex, idxDate).getValue());
+    var rowLine  = String(sheet.getRange(rowIndex, idxLine).getValue()).trim();
+    var rowShift = String(sheet.getRange(rowIndex, idxShift).getValue()).trim();
+
+    if (rowDate === dateParam && rowLine === lineParam && rowShift === shiftParam) {
+      colIndices.forEach((colIdx, idx) => {
+        var val = Number(sheet.getRange(rowIndex, colIdx).getValue());
+        if (!isNaN(val)) {
+          labels.push(colNames[idx]);
+          values.push(val);
+        }
+      });
+      break;
+    }
+  }
+
+  if (labels.length === 0) {
+    return sendJSON({ error: "No matching ST-30 data found." });
+  }
+
+  return sendJSON({ labels: labels, values: values });
+}
+
+function handleST40(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var headerRowIndex = 1;
+  var headers = sheet.getRange(headerRowIndex + 1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(h => String(h).trim().toUpperCase());
+
+  // Adjust these column names to match your sheet's ST-40 positions
+  var idxDate  = headers.indexOf("DATE") + 1;
+  var idxLine  = headers.indexOf("LINE NO") + 1;
+  var idxShift = headers.indexOf("SHIFT") + 1;
+  var colNames = ["301", "401"]; // ST-40 positions
+  var colIndices = colNames.map(name => headers.indexOf(name) + 1);
+
+  if ([idxDate, idxLine, idxShift, ...colIndices].some(i => i <= 0)) {
+    return sendJSON({ error: "Required columns missing for ST-40." });
+  }
+
+  var dateParam  = e.parameter.date;
+  var shiftParam = e.parameter.shift;
+  var lineParam  = e.parameter.line;
+
+  var labels = [];
+  var values = [];
+
+  var lastRow = sheet.getLastRow();
+  for (var rowIndex = headerRowIndex + 2; rowIndex <= lastRow; rowIndex++) {
+    var rowDate  = formatDate(sheet.getRange(rowIndex, idxDate).getValue());
+    var rowLine  = String(sheet.getRange(rowIndex, idxLine).getValue()).trim();
+    var rowShift = String(sheet.getRange(rowIndex, idxShift).getValue()).trim();
+
+    if (rowDate === dateParam && rowLine === lineParam && rowShift === shiftParam) {
+      colIndices.forEach((colIdx, idx) => {
+        var val = Number(sheet.getRange(rowIndex, colIdx).getValue());
+        if (!isNaN(val)) {
+          labels.push(colNames[idx]);
+          values.push(val);
+        }
+      });
+      break;
+    }
+  }
+
+  if (labels.length === 0) {
+    return sendJSON({ error: "No matching ST-40 data found." });
+  }
+
+  return sendJSON({ labels: labels, values: values });
+}
+
+

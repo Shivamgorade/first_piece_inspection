@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ABS10M First piece Inspection Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <link rel="stylesheet" type="text/css" href="dashboard.css" />
+ </head>
+<body>
+  <header>📋 ABS10M First Piece Inspection Dashboard</header>
+
+<div class="container">
+  <script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const dateInput = document.getElementById('filter-date');
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0'); // Months start at 0
+    const dd = String(today.getDate()).padStart(2, '0');
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+  });
+</script>
+
+
+  <!-- Filter Section -->
+  <div class="filters">
+  <input type="date" id="filter-date" required aria-label="Select Date" />
+  
+  <select id="filter-line" required aria-label="Select Line">
+    <option value="" disabled selected>Select Line</option>
+    <option value="10M LINE#01">10M LINE#01</option>
+    <option value="10M LINE#02">10M LINE#02</option>
+    <option value="10M LINE#03">10M LINE#03</option>
+  </select>
+
+  <select id="filter-shift" required aria-label="Select Shift">
+    <option value="" disabled selected>Select Shift</option>
+    <option value="1st">1st [12:00-07:00]</option>
+    <option value="2nd">2nd [07:00-3:30]</option>
+    <option value="3rd">3rd [03:30-12:00]</option>
+  </select>
+
+  <button id="apply-filters">Search</button>
+</div>
+
+  <!-- Summary Section -->
+  <div class="section-title">Inspection Summary</div>
+
+  <div class="summary">
+    <div class="summary-card">
+      <strong>📊 Total Inspections</strong>
+      <p id="total-inspections-count">0</p>
+    </div>
+    <div class="summary-card">
+      <strong>✅ Total Verified by MFQ</strong>
+      <p>400</p>
+    </div>
+    <div class="summary-card">
+      <strong>🕒 Under MFQ Review</strong>
+      <p>500</p>
+    </div>
+  </div>
+  <!-- Charts Section -->
+    
+    <div class="section-title">Visual Analysis Inspection Station Wise</div>
+
+
+  <div class="info-card">
+  <div class="info-title">
+    General Info
+    <div class="info-subtitle">x-axis staking positions | y-axis staking depth in mm</div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">Date</div>
+    <div class="info-value" id="info-date"></div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">Line No</div>
+    <div class="info-value" id="info-line"></div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">Shift</div>
+    <div class="info-value" id="info-shift"></div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">Supervisor</div>
+    <div class="info-value" id="info-supervisor"></div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">Part No</div>
+    <div class="info-value" id="info-part-no"></div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">Part Type</div>
+    <div class="info-value" id="info-part-type"></div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">ST-15 DMC</div>
+    <div class="info-value" id="info-st15-dmc"></div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">ST-30 DMC</div>
+    <div class="info-value" id="info-st30-dmc"></div>
+  </div>
+
+  <div class="info-field">
+    <div class="info-label">Checked By</div>
+    <div class="info-value" id="info-checked-by"></div>
+  </div>
+</div>
+
+
+
+
+<div class="grid">
+
+  <!-- ST-15 Chart -->
+  <div class="card">
+    <h2>ST-15 Accumulator Cap</h2>
+    <p class="subtitle"></p>
+    <div class="chart-container" style="height: 240px;">
+      <canvas id="chart1"></canvas>
+    </div>
+    <div class="notation">
+      <div><span class="circle red"></span> Spec Range: 0.75 - 1.45 mm</div>
+      <div><span class="circle green"></span> Control Limit: 0.80 - 1.40 mm</div>
+    </div>
+  </div>
+
+  <!-- ST-20 Ball Staking -->
+  <div class="card">
+    <h2>ST-20 Ball Staking</h2>
+    <p class="subtitle"></p>
+    <div class="chart-container" style="height: 260px;">
+      <canvas id="chart2"></canvas>
+    </div>
+    <div class="notation">
+      <div><span class="circle red"></span> Spec Range: 0.50 - 0.85 mm</div>
+      <div><span class="circle green"></span> Control Limit: 0.55 - 0.80 mm</div>
+    </div>
+  </div>
+
+  <!-- ST-25 Gauge Chart -->
+  <div class="card">
+    <h2>ST-25 C-Bearing</h2>
+    <div class="chart-container">
+      <canvas id="chart3"></canvas>
+    </div>
+    <div class="notation">
+      <div><span class="circle red"></span> 0.20 - 0.60 mm</div>
+      <div><span class="circle green"></span> 0.30 - 0.45 mm</div>
+    </div>
+  </div>
+
+  <!-- ST-25 MV Staking -->
+  <div class="card">
+    <h2>ST-25 MV Staking</h2>
+    <div class="chart-container" style="height: 250px;">
+      <canvas id="chart4"></canvas>
+    </div>
+    <div class="notation">
+      <div><span class="circle red"></span> Spec Range: 0.65 - 0.90 mm</div>
+      <div><span class="circle green"></span> Control Limit: 0.70 - 0.85 mm</div>
+    </div>
+  </div>
+
+  <!-- ST-30 Motor Staking -->
+  <div class="card">
+    <h2>ST-30 – Motor Staking</h2>
+    <div class="chart-container" style="height: 280px;">
+      <canvas id="st30Chart"></canvas>
+    </div>
+    <div class="notation">
+      <div><span class="circle red"></span> Spec Range: 0.50 - 1.40 mm</div>
+      <div><span class="circle green"></span> Control Limit: 0.65 - 1.30 mm</div>
+    </div>
+  </div>
+
+  <!-- ST-40 AV Staking -->
+  <div class="card">
+    <h2>ST-40 AV Staking</h2>
+    <div class="chart-container" style="position: relative; height: 280px; width: 100%;">
+      <canvas id="chart6"></canvas>
+    </div>
+    <div class="notation">
+      <div><span class="circle red"></span> Spec Range: 0.37 - 0.60 mm</div>
+      <div><span class="circle green"></span> Control Limit: 0.40 - 0.56 mm</div>
+    </div>
+  </div>
+</div>
+<!-- 45-85-------------------------------------------------------------------------------------------------------------- -->
+
+<div class="card-container-custom">
+  <div class="card-section-custom">
+    <div class="card-header-custom">ST-45 Torquing ECU Screws</div>
+    <div class="field-box-custom">
+      <div class="field-label-custom">231:</div>
+      <div id="status-231" class="status-ok-custom">Loading...</div>
+    </div>
+    <div class="field-box-custom">
+      <div class="field-label-custom">232:</div>
+      <div id="status-232" class="status-ok-custom">Loading...</div>
+    </div>
+    <div class="field-box-custom">
+      <div class="field-label-custom">No Damage to Head of ECU Screws After Torquing:</div>
+      <div id="status-ecu-screws" class="status-ok-custom">Loading...</div>
+    </div>
+  </div>
+
+  <!-- ST-85 Section -->
+  <div class="card-section-custom">
+    <div class="card-header-custom">ST-85 Tape Application</div>
+    <div class="field-box-custom">
+      <div class="field-label-custom">No Damage to ECU Housing (Pins of Customer Connector):</div>
+      <div id="status-ecu-housing" class="status-ok-custom">Loading...</div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+<script>
+  
+let st15Chart = null;
+
+function renderST15Chart(labels, data) {
+  const ctx1 = document.getElementById("chart1").getContext("2d");
+
+  if (st15Chart) st15Chart.destroy();
+
+  const grad1 = ctx1.createLinearGradient(0, 0, 0, 300);
+  grad1.addColorStop(0, "#36d1dc");
+  grad1.addColorStop(1, "#5b86e5");
+
+  const plugin1 = {
+    id: "bg1",
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+      ctx.save();
+
+      // Red zone (spec limits)
+      ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+      ctx.fillRect(left, y.getPixelForValue(1.50), right - left, y.getPixelForValue(0.70) - y.getPixelForValue(1.50));
+
+      // Green zone (control limits)
+      ctx.fillStyle = "rgba(0, 128, 0, 0.15)";
+      ctx.fillRect(left, y.getPixelForValue(1.4), right - left, y.getPixelForValue(0.8) - y.getPixelForValue(1.4));
+
+      // Dashed spec limit lines
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "red";
+      [0.75, 1.45].forEach(val => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(val));
+        ctx.lineTo(right, y.getPixelForValue(val));
+        ctx.stroke();
+      });
+
+      // Dashed control limit lines
+      ctx.strokeStyle = "green";
+      [0.8, 1.4].forEach(val => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(val));
+        ctx.lineTo(right, y.getPixelForValue(val));
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+  };
+
+  st15Chart = new Chart(ctx1, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: grad1,
+        borderRadius: 4,
+        barThickness: 35
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: "#000",
+          anchor: "end",
+          align: "top",
+          font: { weight: "bold", size: 11 },
+          formatter: val => val.toFixed(2)
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Depth: ${ctx.parsed.y.toFixed(2)} mm`
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0.7,
+          max: 1.5,
+          ticks: {
+            stepSize: 0.05,
+            font: { size: 11 },
+            callback: val => val.toFixed(2)
+          },
+          grid: {
+            drawTicks: false,
+            color: "rgba(0,0,0,0.05)"
+          }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 11 } }
+        }
+      },
+      responsive: true,
+      maintainAspectRatio: false
+    },
+    plugins: [ChartDataLabels, plugin1]
+  });
+}
+
+async function fetchST15Chart(date, shift, line) {
+  try {
+    const url = 'https://script.google.com/macros/s/AKfycbxQzpA7iMc-el2AHHg51UguLBHEK5MWrovcLotjz8ljXeAQDZOqZADYDUkR128sv2hh/exec';
+    const params = new URLSearchParams({ chart: "st15", date, shift, line });
+    const res = await fetch(`${url}?${params.toString()}`);
+    const data = await res.json();
+
+    if (data.error) {
+      console.warn("No data:", data.error);
+      renderST15Chart(["501", "502"], [0, 0]);
+      return;
+    }
+    renderST15Chart(data.labels, data.data);
+  } catch (err) {
+    console.error("Error loading ST-15 chart:", err);
+  }
+}
+
+// Render default chart on page load
+document.addEventListener("DOMContentLoaded", () => {
+  const defaultLabels = ["501", "502"];
+  const defaultValues = [1.2, 1.2];  // Default dummy values
+  renderST15Chart(defaultLabels, defaultValues);
+});
+
+
+
+
+
+
+
+let st20Chart = null;
+
+function renderST20Chart(labels, values) {
+  const ctx2 = document.getElementById("chart2").getContext("2d");
+
+  if (st20Chart) st20Chart.destroy();
+
+  const grad2 = ctx2.createLinearGradient(0, 0, 0, 300);
+  grad2.addColorStop(0, "#36d1dc");
+  grad2.addColorStop(1, "#5b86e5");
+
+  const plugin2 = {
+    id: "bg2",
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+      ctx.save();
+
+      // Spec range (red)
+      ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+      ctx.fillRect(left, y.getPixelForValue(0.90), right - left, y.getPixelForValue(0.40) - y.getPixelForValue(0.90));
+
+      // Control range (green)
+      ctx.fillStyle = "rgba(0, 128, 0, 0.12)";
+      ctx.fillRect(left, y.getPixelForValue(0.80), right - left, y.getPixelForValue(0.55) - y.getPixelForValue(0.80));
+
+      // Dashed spec lines
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "red";
+      [0.50, 0.85].forEach(val => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(val));
+        ctx.lineTo(right, y.getPixelForValue(val));
+        ctx.stroke();
+      });
+
+      // Dashed control lines
+      ctx.strokeStyle = "green";
+      [0.55, 0.80].forEach(val => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(val));
+        ctx.lineTo(right, y.getPixelForValue(val));
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+  };
+
+  st20Chart = new Chart(ctx2, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: grad2,
+        borderRadius: 4,
+        barThickness: 25
+      }]
+    },
+    options: {
+      layout: { padding: { top: 0, bottom: 10 } },
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: "#000",
+          anchor: "end",
+          align: "top",
+          font: { weight: "bold", size: 11 },
+          formatter: val => val.toFixed(2)
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Depth: ${ctx.parsed.y.toFixed(2)} mm`
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0.4,
+          max: 0.9,
+          ticks: {
+            stepSize: 0.1,
+            font: { size: 10 },
+            callback: val => val.toFixed(2)
+          },
+          grid: {
+            drawTicks: false,
+            color: "rgba(0,0,0,0.05)"
+          }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 } }
+        }
+      },
+      responsive: true,
+      maintainAspectRatio: false
+    },
+    plugins: [ChartDataLabels, plugin2]
+  });
+}
+
+async function fetchST20Chart(date, shift, line) {
+  try {
+    const url = 'https://script.google.com/macros/s/AKfycbxQzpA7iMc-el2AHHg51UguLBHEK5MWrovcLotjz8ljXeAQDZOqZADYDUkR128sv2hh/exec';
+    const params = new URLSearchParams({ chart: "st20", date, shift, line });
+    const res = await fetch(`${url}?${params.toString()}`);
+    const data = await res.json();
+
+    if (data.error) {
+      console.warn("No data:", data.error);
+      renderST20Chart(["311","312","411","412","531","532","541","542"], [0,0,0,0,0,0,0,0]);
+      return;
+    }
+    renderST20Chart(data.labels, data.data);
+  } catch (err) {
+    console.error("Error loading ST-20 chart:", err);
+  }
+}
+document.addEventListener("DOMContentLoaded", () => {
+  renderST20Chart(
+    ["311","312","411","412","531","532","541","542"],
+    [0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7]
+  );
+});
+
+
+
+
+let chart3Instance = null;
+
+function createST25CChart(value = 0.42) {
+  const ctx3 = document.getElementById("chart3").getContext("2d");
+
+  if (chart3Instance) chart3Instance.destroy();
+
+  chart3Instance = new Chart(ctx3, {
+    type: "bar",
+    data: {
+      labels: ["221"],
+      datasets: [
+        { label: "Low", data: [0.30], backgroundColor: "rgba(255,0,0,0.12)", barThickness: 50, stack: "s" },
+        { label: "Control", data: [0.15], backgroundColor: "rgba(0,128,0,0.18)", barThickness: 50, stack: "s" },
+        { label: "High", data: [0.25], backgroundColor: "rgba(255,0,0,0.12)", barThickness: 50, stack: "s" },
+        {
+          label: "Actual",
+          type: "line",
+          data: [value],
+          pointBackgroundColor: "#000",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 8,
+          showLine: false
+        }
+      ]
+    },
+    options: {
+      indexAxis: "y",
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: () => `Depth: ${value.toFixed(2)} mm` } }
+      },
+      scales: {
+        x: {
+          min: 0.20,
+          max: 0.65,
+          ticks: { stepSize: 0.05, color: "#555", font: { size: 11 } },
+          grid: { drawTicks: true, color: "rgba(200,200,200,0.2)" }
+        },
+        y: { ticks: { display: false }, grid: { display: false } }
+      },
+      responsive: true,
+      maintainAspectRatio: false
+    },
+    plugins: [
+      {
+        id: "labelDot",
+        afterDatasetsDraw(chart) {
+          const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+          ctx.save();
+
+          // Label above dot
+          ctx.fillStyle = "#000";
+          ctx.font = "bold 12px Segoe UI";
+          ctx.textAlign = "center";
+          ctx.fillText(`${value.toFixed(2)} mm`, x.getPixelForValue(value), bottom - 40);
+
+          // Green control limits
+          ctx.beginPath();
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = "green";
+          ctx.lineWidth = 1.5;
+          [0.30, 0.45].forEach(val => {
+            ctx.moveTo(x.getPixelForValue(val), top);
+            ctx.lineTo(x.getPixelForValue(val), bottom);
+            ctx.stroke();
+          });
+
+          // Red spec limits
+          ctx.strokeStyle = "red";
+          [0.20, 0.60].forEach(val => {
+            ctx.beginPath();
+            ctx.moveTo(x.getPixelForValue(val), top);
+            ctx.lineTo(x.getPixelForValue(val), bottom);
+            ctx.stroke();
+          });
+
+          ctx.restore();
+        }
+      }
+    ]
+  });
+}
+
+async function fetchST25CChart(date, shift, line) {
+  try {
+    // ✅ Pass required parameters to backend
+    const url = `https://script.google.com/macros/s/AKfycbxQzpA7iMc-el2AHHg51UguLBHEK5MWrovcLotjz8ljXeAQDZOqZADYDUkR128sv2hh/exec?chart=st25c&date=${encodeURIComponent(date)}&shift=${encodeURIComponent(shift)}&line=${encodeURIComponent(line)}`;
+    
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Server error");
+
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+
+    const value = result.values?.[0];
+    if (typeof value === "number" && !isNaN(value)) {
+      createST25CChart(value);
+    } else {
+      throw new Error("Invalid data received");
+    }
+
+  } catch (err) {
+    console.error("ST-25-C Chart Load Error:", err);
+    alert("NO DATA FOUND FOR THIS DATE");
+    createST25CChart(0.0); // placeholder
+  }
+}
+
+// ✅ Load placeholder on page load
+document.addEventListener("DOMContentLoaded", () => {
+  createST25CChart(0.38);
+});
+
+
+
+
+
+
+let chartST25MV = null;
+
+function createST25MVChart(labels, values) {
+  const ctx4 = document.getElementById('chart4').getContext('2d');
+
+  if (chartST25MV) chartST25MV.destroy();
+
+  const grad4 = ctx4.createLinearGradient(0, 0, 0, 300);
+  grad4.addColorStop(0, '#36d1dc');
+  grad4.addColorStop(1, '#5b86e5');
+
+  const plugin4 = {
+    id: 'bg4',
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+      ctx.save();
+
+      // Spec Range Background (Red)
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+      ctx.fillRect(left, y.getPixelForValue(0.95), right - left, y.getPixelForValue(0.60) - y.getPixelForValue(0.95));
+
+      // Control Range Background (Green)
+      ctx.fillStyle = 'rgba(0, 128, 0, 0.15)';
+      ctx.fillRect(left, y.getPixelForValue(0.85), right - left, y.getPixelForValue(0.70) - y.getPixelForValue(0.85));
+
+      // Dashed Lines
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1.5;
+
+      // Red Spec Lines
+      ctx.strokeStyle = 'red';
+      [0.65, 0.90].forEach(v => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(v));
+        ctx.lineTo(right, y.getPixelForValue(v));
+        ctx.stroke();
+      });
+
+      // Green Control Lines
+      ctx.strokeStyle = 'green';
+      [0.70, 0.85].forEach(v => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(v));
+        ctx.lineTo(right, y.getPixelForValue(v));
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+  };
+
+  chartST25MV = new Chart(ctx4, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: grad4,
+        borderRadius: 4,
+        barThickness: 35
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: '#000',
+          anchor: 'end',
+          align: 'top',
+          font: { weight: 'bold', size: 11 },
+          formatter: val => val.toFixed(2)
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Depth: ${ctx.parsed.y.toFixed(2)} mm`
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0.6,
+          max: 0.95,
+          ticks: {
+            stepSize: 0.05,
+            font: { size: 11 }
+          }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 11 } }
+        }
+      },
+      responsive: true,
+      maintainAspectRatio: false
+    },
+    plugins: [ChartDataLabels, plugin4]
+  });
+}
+
+async function updateST25MVChart(date, line, shift) {
+  try {
+    const baseUrl = 'https://script.google.com/macros/s/AKfycbxQzpA7iMc-el2AHHg51UguLBHEK5MWrovcLotjz8ljXeAQDZOqZADYDUkR128sv2hh/exec'; // replace with your deployed link
+    const url = `${baseUrl}?chart=st25mv&date=${encodeURIComponent(date)}&line=${encodeURIComponent(line)}&shift=${encodeURIComponent(shift)}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!res.ok || data.error) throw new Error(data.error || "Server error");
+
+    createST25MVChart(data.labels, data.values);
+  } catch (err) {
+    console.error("ST-25-MV Chart Load Error:", err.message || err);
+  }
+}
+
+// ✅ On DOM ready: show default dummy chart
+document.addEventListener("DOMContentLoaded", () => {
+  // Default dummy values
+  createST25MVChart(["201", "202", "211", "212"], [0.75, 0.75, 0.75, 0.75]);
+
+  // Optional: filter button binding
+  const btn = document.getElementById("applyFiltersBtn");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const date = document.getElementById("filter-date").value;
+      const line = document.getElementById("filter-line").value;
+      const shift = document.getElementById("filter-shift").value;
+
+      updateST25MVChart(date, line, shift);
+    });
+  }
+});
+
+
+
+
+
+
+let chartST30 = null;
+
+function createST30Chart(labels, values) {
+  const ctx30 = document.getElementById('st30Chart').getContext('2d');
+
+  if (chartST30) chartST30.destroy();
+
+  const grad30 = ctx30.createLinearGradient(0, 0, 0, 300);
+  grad30.addColorStop(0, '#36d1dc');
+  grad30.addColorStop(1, '#5b86e5');
+
+  const plugin30 = {
+    id: 'bg30',
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+      ctx.save();
+
+      // Spec range (Red)
+      ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+      ctx.fillRect(left, y.getPixelForValue(1.5), right - left, y.getPixelForValue(0.4) - y.getPixelForValue(1.5));
+
+      // Control range (Green)
+      ctx.fillStyle = "rgba(0, 128, 0, 0.15)";
+      ctx.fillRect(left, y.getPixelForValue(1.3), right - left, y.getPixelForValue(0.65) - y.getPixelForValue(1.3));
+
+      // Dashed lines
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1.5;
+
+      ctx.strokeStyle = 'red';
+      [0.5, 1.4].forEach(val => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(val));
+        ctx.lineTo(right, y.getPixelForValue(val));
+        ctx.stroke();
+      });
+
+      ctx.strokeStyle = 'green';
+      [0.65, 1.3].forEach(val => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(val));
+        ctx.lineTo(right, y.getPixelForValue(val));
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+  };
+
+  chartST30 = new Chart(ctx30, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Staking Depth (mm)',
+        data: values,
+        backgroundColor: grad30,
+        borderRadius: 4,
+        barThickness: 36,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 5, bottom: 10, left: 10, right: 10 } },
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: "#000",
+          anchor: 'end',
+          align: 'top',
+          font: { size: 11, weight: 'bold' },
+          formatter: val => val.toFixed(2)
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Depth: ${ctx.parsed.y.toFixed(2)} mm`
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0.4,
+          max: 1.5,
+          ticks: {
+            stepSize: 0.1,
+            font: { size: 11 }
+          },
+          grid: {
+            drawTicks: false,
+            color: 'rgba(0,0,0,0.05)'
+          }
+        },
+        x: {
+          ticks: { font: { size: 11 } },
+          grid: { display: false }
+        }
+      }
+    },
+    plugins: [ChartDataLabels, plugin30]
+  });
+}
+
+// ✅ Fetch and update chart
+async function updateST30Chart(date, line, shift) {
+  try {
+    const res = await fetch(`https://script.google.com/macros/s/AKfycbxQzpA7iMc-el2AHHg51UguLBHEK5MWrovcLotjz8ljXeAQDZOqZADYDUkR128sv2hh/exec?chart=st30&date=${encodeURIComponent(date)}&line=${encodeURIComponent(line)}&shift=${encodeURIComponent(shift)}`);
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    createST30Chart(data.labels, data.values);
+  } catch (err) {
+    console.error("ST-30 Chart Load Error:", err.message || err);
+  }
+}
+
+
+
+// ✅ On DOM ready: Show default dummy chart and bind filter
+document.addEventListener("DOMContentLoaded", () => {
+  // Dummy data for initial load
+  createST30Chart(["222", "223", "224"], [1.03, 1.03, 1.03]);
+
+  // Optional: trigger on filter apply button
+  const btn = document.getElementById("applyFiltersBtn");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const date = document.getElementById("filter-date").value;
+      const line = document.getElementById("filter-line").value;
+      const shift = document.getElementById("filter-shift").value;
+
+      updateST30Chart(date, line, shift);
+    });
+  }
+});
+
+
+
+let chartST40 = null;
+
+function createST40Chart(labels, values) {
+  const ctx6 = document.getElementById("chart6").getContext("2d");
+
+  if (chartST40) chartST40.destroy();
+
+  const grad6 = ctx6.createLinearGradient(0, 0, 0, 300);
+  grad6.addColorStop(0, "#36d1dc");
+  grad6.addColorStop(1, "#5b86e5");
+
+  const plugin6 = {
+    id: "bg6",
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+      ctx.save();
+
+      // Red (spec zone)
+      ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+      ctx.fillRect(left, y.getPixelForValue(0.65), right - left, y.getPixelForValue(0.30) - y.getPixelForValue(0.65));
+
+      // Green (control zone)
+      ctx.fillStyle = "rgba(0, 128, 0, 0.15)";
+      ctx.fillRect(left, y.getPixelForValue(0.56), right - left, y.getPixelForValue(0.4) - y.getPixelForValue(0.56));
+
+      // Dashed lines
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1.5;
+
+      ctx.strokeStyle = "red";
+      [0.37, 0.6].forEach(val => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(val));
+        ctx.lineTo(right, y.getPixelForValue(val));
+        ctx.stroke();
+      });
+
+      ctx.strokeStyle = "green";
+      [0.4, 0.56].forEach(val => {
+        ctx.beginPath();
+        ctx.moveTo(left, y.getPixelForValue(val));
+        ctx.lineTo(right, y.getPixelForValue(val));
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    },
+  };
+
+  chartST40 = new Chart(ctx6, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          data: values,
+          backgroundColor: grad6,
+          borderRadius: 4,
+          barThickness: 36,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: "#000",
+          anchor: "end",
+          align: "top",
+          font: { size: 11, weight: "bold" },
+          formatter: (val) => val.toFixed(2),
+        },
+      },
+      scales: {
+        y: {
+          min: 0.3,
+          max: 0.65,
+          ticks: {
+            stepSize: 0.05,
+            font: { size: 11 },
+          },
+          grid: {
+            drawTicks: false,
+            color: "rgba(0,0,0,0.05)",
+          },
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 11 } },
+        },
+      },
+    },
+    plugins: [ChartDataLabels, plugin6],
+  });
+}
+
+async function updateST40Chart(date, line, shift) {
+  try {
+    const baseUrl = 'https://script.google.com/macros/s/AKfycbxQzpA7iMc-el2AHHg51UguLBHEK5MWrovcLotjz8ljXeAQDZOqZADYDUkR128sv2hh/exec';
+    const url = `${baseUrl}?chart=st40&date=${encodeURIComponent(date)}&line=${encodeURIComponent(line)}&shift=${encodeURIComponent(shift)}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!res.ok || data.error) throw new Error(data.error || "Server error");
+
+    createST40Chart(data.labels, data.values);
+  } catch (err) {
+    console.error("ST-40 Chart Load Error:", err.message || err);
+  }
+}
+
+// ✅ Initialize on page load with default values
+document.addEventListener("DOMContentLoaded", () => {
+  // 🎯 Default dummy values (you can change this to match your Excel expected range visually)
+  createST40Chart(["301", "401"], [0.50, 0.50]);
+
+    });
+  
+
+
+
+
+async function updateGeneralInfo(date, line, shift) {
+  try {
+    const baseUrl = "https://script.google.com/macros/s/AKfycbwstZyO7gA0mt5iB3nAbUmpx0S4N4mSlE8Esi_nAuJ1PMZ1leQ8V9EpIG75G0zTJgS7/exec";
+    const url = `${baseUrl}?type=generalinfo&date=${encodeURIComponent(date)}&line=${encodeURIComponent(line)}&shift=${encodeURIComponent(shift)}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "Server error");
+
+    document.getElementById("info-date").textContent       = data["DATE"] || "";
+    document.getElementById("info-line").textContent       = data["LINE NO"] || "";
+    document.getElementById("info-shift").textContent      = data["SHIFT"] || "";
+    document.getElementById("info-supervisor").textContent = data["SUPERVISOR"] || "";
+    document.getElementById("info-part-no").textContent    = data["PART NO"] || "";
+    document.getElementById("info-part-type").textContent  = data["PART TYPE"] || "";
+    document.getElementById("info-st15-dmc").textContent   = data["ST-15 DMC NO"] || "";
+    document.getElementById("info-st30-dmc").textContent   = data["ST-30 DMC NO"] || "";
+    document.getElementById("info-checked-by").textContent = data["CHECKED BY"] || "";
+
+  } catch (err) {
+    console.error("General Info Load Error:", err.message || err);
+  }
+}
+
+
+
+
+
+async function updateST45And85Card(date, line, shift) {
+  const baseUrl = "https://script.google.com/macros/s/AKfycbzPzXIgY5fwYnRXU3mP3s6CSDmF7NutjPpOsRKxwaCAq7IPVMS_Ux1tdLZQVJ4YDbEh/exec"; // Replace with /exec URL
+  const url = `${baseUrl}?chart=st45_85&date=${encodeURIComponent(date)}&line=${encodeURIComponent(line)}&shift=${encodeURIComponent(shift)}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      console.error("ST45/ST85 Fetch Error:", data.error || "Unknown error");
+      document.getElementById("status-231").innerText = "No data";
+      document.getElementById("status-232").innerText = "No data";
+      document.getElementById("status-ecu-screws").innerText = "No data";
+      document.getElementById("status-ecu-housing").innerText = "No data";
+      return;
+    }
+
+    document.getElementById("status-231").innerText = data["231"];
+    document.getElementById("status-232").innerText = data["232"];
+    document.getElementById("status-ecu-screws").innerText = data["ecuScrews"];
+    document.getElementById("status-ecu-housing").innerText = data["ecuHousing"];
+
+  } catch (err) {
+    console.error("ST45/ST85 Fetch Error:", err);
+    document.getElementById("status-231").innerText = "Error";
+    document.getElementById("status-232").innerText = "Error";
+    document.getElementById("status-ecu-screws").innerText = "Error";
+    document.getElementById("status-ecu-housing").innerText = "Error";
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+document.getElementById("apply-filters").addEventListener("click", () => {
+  const date = document.getElementById("filter-date").value;
+  const shift = document.getElementById("filter-shift").value;
+  const line = document.getElementById("filter-line").value;
+
+  if (!date || !shift || !line) {
+    alert("Please select all filters");
+    return;
+  }
+
+  // Show instant placeholder bars (light gray, no labels)
+  renderST15Chart(["501", "502"], );
+  renderST20Chart(["311","312","411","412","531","532","541","542"], );
+  createST25CChart(0.0); // Placeholder
+  createST25MVChart(["201", "202", "211", "212"],);
+  createST30Chart(["222", "223", "224"],); // ✅ ST-30 placeholder
+  createST40Chart(["301", "401"], ); // ✅ ST-40 placeholder
+
+  // Fetch both charts in parallel
+  Promise.all([
+    fetchST15Chart(date, shift, line),
+    fetchST20Chart(date, shift, line),
+    fetchST25CChart(date, shift, line),
+    updateST25MVChart(date, line, shift),
+    updateST30Chart(date, line, shift), // ✅ ST-30 fetch
+    updateST40Chart(date, line, shift),
+    updateGeneralInfo(date, line, shift),
+    updateST45And85Card(date, line, shift)
+
+    
+  ]).catch(err => console.error("Error loading charts:", err));
+});
+</script>
+</html>
