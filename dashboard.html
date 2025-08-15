@@ -53,7 +53,7 @@
   <div class="summary">
     <div class="summary-card">
       <strong>📊 Total Inspections</strong>
-      <p id="total-inspections-count">0</p>
+      <p id="total-inspections-count"></p>
     </div>
     <div class="summary-card">
       <strong>✅ Total Verified by MFQ</strong>
@@ -227,11 +227,48 @@
       <div id="status-ecu-housing" class="status-ok-custom">Loading...</div>
     </div>
   </div>
+
+
+  <!-- Global Loading Overlay -->
+<div id="loading-overlay" style="
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    padding-top: 20%;
+    z-index: 9999;
+">
+    Fetching data...
+</div>
+
+
 </div>
 </div>
 </body>
 <script>
   
+
+
+
+
+function showLoading() {
+    document.getElementById('loading-overlay').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loading-overlay').style.display = 'none';
+}
+
+
+
+
+
+
+
 let st15Chart = null;
 
 function renderST15Chart(labels, data) {
@@ -1079,47 +1116,87 @@ async function updateST45And85Card(date, line, shift) {
 
 
 
+const BASE_URL = "https://script.google.com/macros/s/AKfycbw53cWtnTLHSolhrqU9gQMEShxJCnwv8uDD81dvURC2Qi2G_qEzHiYjoJGyrZK1cIHi/exec";
 
+// ===== UPDATE TOTAL INSPECTIONS CARD =====
+async function updateTotalInspectionsCard() {
+  const card = document.getElementById('total-inspections-count');
+  if (!card) return;
 
+  // Show waiting message
+  card.textContent = 'Waiting for data...';
 
+  try {
+    const res = await fetch(`${BASE_URL}?type=totalinspections`);
+    const data = await res.json();
 
-
-
-
-
-
-
-document.getElementById("apply-filters").addEventListener("click", () => {
-  const date = document.getElementById("filter-date").value;
-  const shift = document.getElementById("filter-shift").value;
-  const line = document.getElementById("filter-line").value;
-
-  if (!date || !shift || !line) {
-    alert("Please select all filters");
-    return;
+    if (res.ok && !data.error) {
+      card.textContent = data.total;
+    } else {
+      console.error('Total Inspections Fetch Error:', data.error || 'Unknown error');
+      card.textContent = 'Error';
+    }
+  } catch (err) {
+    console.error('Total Inspections Fetch Error:', err);
+    card.textContent = 'Error';
   }
+}
 
-  // Show instant placeholder bars (light gray, no labels)
-  renderST15Chart(["501", "502"], );
-  renderST20Chart(["311","312","411","412","531","532","541","542"], );
-  createST25CChart(0.0); // Placeholder
-  createST25MVChart(["201", "202", "211", "212"],);
-  createST30Chart(["222", "223", "224"],); // ✅ ST-30 placeholder
-  createST40Chart(["301", "401"], ); // ✅ ST-40 placeholder
+// ===== CALL AFTER DOM IS LOADED =====
+document.addEventListener("DOMContentLoaded", () => {
+  updateTotalInspectionsCard();
+});
 
-  // Fetch both charts in parallel
-  Promise.all([
-    fetchST15Chart(date, shift, line),
-    fetchST20Chart(date, shift, line),
-    fetchST25CChart(date, shift, line),
-    updateST25MVChart(date, line, shift),
-    updateST30Chart(date, line, shift), // ✅ ST-30 fetch
-    updateST40Chart(date, line, shift),
-    updateGeneralInfo(date, line, shift),
-    updateST45And85Card(date, line, shift)
 
-    
-  ]).catch(err => console.error("Error loading charts:", err));
+
+
+
+
+
+
+
+
+
+document.getElementById("apply-filters").addEventListener("click", async () => {
+    const date = document.getElementById("filter-date").value;
+    const shift = document.getElementById("filter-shift").value;
+    const line = document.getElementById("filter-line").value;
+
+    if (!date || !shift || !line) {
+        alert("Please select all filters");
+        return;
+    }
+
+    // Show fetching overlay
+    showLoading();
+
+    // Show instant placeholder bars (light gray, no labels)
+    renderST15Chart(["501", "502"]);
+    renderST20Chart(["311","312","411","412","531","532","541","542"]);
+    createST25CChart(0.0); // Placeholder
+    createST25MVChart(["201", "202", "211", "212"]);
+    createST30Chart(["222", "223", "224"]);
+    createST40Chart(["301", "401"]);
+
+    try {
+        // Fetch all charts/cards in parallel
+        await Promise.all([
+            fetchST15Chart(date, shift, line),
+            fetchST20Chart(date, shift, line),
+            fetchST25CChart(date, shift, line),
+            updateST25MVChart(date, line, shift),
+            updateST30Chart(date, line, shift),
+            updateST40Chart(date, line, shift),
+            updateGeneralInfo(date, line, shift),
+            updateST45And85Card(date, line, shift),
+            updateTotalInspectionsCard()
+        ]);
+    } catch (err) {
+        console.error("Error loading charts:", err);
+    } finally {
+        // Hide overlay when all fetches complete
+        hideLoading();
+    }
 });
 </script>
 </html>
